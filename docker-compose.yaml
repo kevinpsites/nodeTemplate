@@ -1,0 +1,35 @@
+---
+version: "3"
+services:
+
+  # Simple Lambda API Node JS App
+  lambda-app:
+    build:
+      context: ./
+      # Build from dist folder, npm run build should have been run before
+      dockerfile: Dockerfile
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - PORT=3000
+      - AUTH0_API_AUDIENCE=https://571cp2h4ef.execute-api.us-east-1.amazonaws.com/prod
+      - AUTH0_JWKS=https://dev-cdy4xvtqdlpi2327.us.auth0.com/.well-known/jwks.json
+      - DYNAMO_TABLE=blc.assessments
+    ports:
+      - "3000:8080" # api endpoint
+  router:
+    build:
+      context: ./localDev
+      # target: dev
+    volumes:
+      - ./localDev:/src
+    command: npm run start
+    ports:
+      - "3001:3000"
+    depends_on:
+      - lambda-app
+    environment:
+      - PORT=3000
