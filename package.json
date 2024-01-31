@@ -24,7 +24,7 @@
     "jwt-decode": "^3.1.2",
     "lambda-api": "^1.0.3",
     "@aws-sdk/client-dynamodb": "3.321.1",
-    "@aws-sdk/lib-dynamodb": "^3.321.1",
+    "@aws-sdk/lib-dynamodb": "^3.385.0",
     "axios": "^1.1.2"
   }
 }
