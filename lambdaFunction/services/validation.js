@@ -6,14 +6,14 @@ const exampleSchema = {
   id: "/item",
   type: "object",
   properties: {
-    hashId: { type: "string" },
-    rangeId: { type: "string" },
-    userId: { type: "string" },
+    hashID: { type: "string" },
+    rangeID: { type: "string" },
+    userID: { type: "string" },
     createdOn: { type: "integer" },
     modifiedOn: { type: "integer" },
     tags: { type: "array" },
   },
-  required: ["hashId", "rangeId", "userId"],
+  required: ["hashID", "rangeID", "userID"],
 };
 
 // console.log(v.validate(p, schema));

@@ -3,13 +3,14 @@ const jwt_decode = require("jwt-decode");
 const jwksClient = require("jwks-rsa");
 const c = require("../config");
 
-const notAuthorizedText = c.config.notAuthorizedText;
+const tokenFunctions = require("../helperFunctions/tokenFunctions");
 
+const notAuthorizedText = c.config.notAuthorizedText;
 const verifyAuth0TokenMiddleware = async (req, res, next) => {
   let auth = req.auth;
   req.user = {};
 
-  console.log(`Route found: ${req.route}`);
+  console.log(`Route found: ${req.route} - ${req.method} - ${req.path}`);
 
   if (auth["type"] !== "Bearer") {
     console.log("AUTHORIZATION denied no Bearer Token");
@@ -57,7 +58,7 @@ const verifyAuth0TokenMiddleware = async (req, res, next) => {
 const verifyRoutePermissionsMiddleware =
   (permission = "") =>
   async (req, res, next) => {
-    const userPermissions = req.user.token?.permissions;
+    const userPermissions = tokenFunctions.getPermissions(req);
 
     if (!permission) {
       next();

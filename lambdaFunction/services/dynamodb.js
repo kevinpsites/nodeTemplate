@@ -1,8 +1,5 @@
 const awsDynamo = require("@aws-sdk/lib-dynamodb");
 const awsDynamoClient = require("@aws-sdk/client-dynamodb");
-
-const generateThreadId = () => "";
-
 const { DynamoDBClient } = awsDynamoClient;
 
 const {
@@ -13,8 +10,6 @@ const {
   UpdateCommand,
   GetCommand,
 } = awsDynamo;
-
-const c = require("../config");
 
 const awsSettings = {
   region: "us-east-1",
@@ -35,13 +30,13 @@ function createDynamoDBClient() {
 class DynamoDBService {
   #dynamoDBClient;
   #config;
-  constructor() {
+  constructor({ config }) {
     // { basicHelper, dynamoDBClient, sendMetric, config }
     // this.#basicHelper = basicHelper;
     this.#dynamoDBClient = createDynamoDBClient();
     // this.#sendMetric = sendMetric;
 
-    this.#config = c.config;
+    this.#config = config;
   }
 
   async send(requestName, command) {
@@ -52,13 +47,7 @@ class DynamoDBService {
       status = "failure";
       throw err;
     } finally {
-      //   this.#sendMetric(
-      //     "dynamodb_request",
-      //     1,
-      //     `request:${requestName}`,
-      //     `status:${status}`
-      //   );
-      // console.log("")
+      console.log("Dynamo Res status: ", status);
     }
   }
 
@@ -75,7 +64,20 @@ class DynamoDBService {
     return scanResults;
   }
 
-  async queryItem(params) {
+  async queryFirstItem(params, allowEmpty) {
+    const command = new QueryCommand(params);
+
+    const queryResponse = await this.send("query", command);
+    if (queryResponse.Count === 0 && !allowEmpty) {
+      // QUESTION - log here with some identifier?
+      throw new Error(`No records found`);
+    } else if (queryResponse.Count === 0 && allowEmpty) {
+      return null;
+    }
+    return queryResponse.Items[0];
+  }
+
+  async queryItems(params, nextPageKey = false) {
     const command = new QueryCommand(params);
 
     const queryResponse = await this.send("query", command);
@@ -83,33 +85,23 @@ class DynamoDBService {
       // QUESTION - log here with some identifier?
       throw new Error(`No records found`);
     }
-    return queryResponse.Items[0];
+
+    if (nextPageKey) {
+      return [queryResponse.Items, res.LastEvaluatedKey];
+    }
+    return queryResponse.Items;
   }
 
-  //   async scanAllConfigsFromTrackV2Form() {
-  //     var params = {
-  //       TableName: this.#config.trackV2FormTable,
-  //       ExpressionAttributeNames: {
-  //         "#accountId": "account_id",
-  //         "#description": "description",
-  //         "#formId": "form_id",
-  //         "#name": "name",
-  //       },
-  //       ProjectionExpression: "#formId, #accountId, #description, #name",
-  //     };
-  //     return await this.scanCommand(params);
-  //   }
-
-  async queryAllUserThoughts(userId, nextPageKey = "") {
+  async queryAllItems(userID, nextPageKey = "") {
     let params = {
       TableName: this.#config.mainDynamodbTable,
       IndexName: "userId_idx",
-      KeyConditionExpression: "#userId=:userId",
+      KeyConditionExpression: "#userID=:userID",
       ExpressionAttributeNames: {
-        "#userId": "userId",
+        "#userID": "userID",
       },
       ExpressionAttributeValues: {
-        ":userId": userId,
+        ":userID": userID,
       },
       ScanIndexForward: false,
       // Limit: 100,
@@ -128,99 +120,41 @@ class DynamoDBService {
     };
   }
 
-  async queryAllUserThreads(userId) {
-    var params = {
-      TableName: this.#config.mainDynamodbTable,
-      KeyConditionExpression: "#threadId=:threadId",
-      ExpressionAttributeNames: {
-        "#threadId": "threadId",
-      },
-      ExpressionAttributeValues: {
-        ":threadId": generateThreadId(userId, ""),
-      },
-    };
-    const command = new QueryCommand(params);
-
-    const res = await this.send("query", command);
-    return res.Items.sort((a, b) => a.createdOn - b.createdOn);
-  }
-
-  async queryAllThreadThoughts(threadId) {
-    var params = {
-      TableName: this.#config.mainDynamodbTable,
-      KeyConditionExpression: "#threadId=:threadId",
-      ExpressionAttributeNames: {
-        "#threadId": "threadId",
-      },
-      ExpressionAttributeValues: {
-        ":threadId": threadId,
-      },
-    };
-    const command = new QueryCommand(params);
-
-    const res = await this.send("query", command);
-    return res.Items;
-  }
-
-  async getThought(thoughtId, threadId) {
-    var params = {
-      TableName: this.#config.mainDynamodbTable,
-      Key: {
-        threadId,
-        thoughtId,
-      },
-    };
-    const command = new GetCommand(params);
-
-    const res = await this.send("get", command);
-    return res.Item;
-  }
-
-  async createThought(thoughtItem) {
+  async createItem(item) {
     const command = new PutCommand({
       TableName: this.#config.mainDynamodbTable,
-      Item: thoughtItem,
+      Item: item,
     });
     return this.send("put", command);
   }
 
-  async deleteThought(thoughtId, threadId) {
+  async deleteThought(itemID, threadID) {
     const command = new DeleteCommand({
       TableName: this.#config.mainDynamodbTable,
       Key: {
-        threadId,
-        thoughtId,
+        threadID,
+        itemID,
       },
     });
     return this.send("delete", command);
   }
 
-  async updateThought({
-    thoughtId,
-    threadId,
-    modifiedOn,
-    type,
-    thought,
-    title,
-    tags,
-  }) {
+  async updateThought({ itemID, modifiedOn, type, title, tags }) {
     const command = new UpdateCommand({
       TableName: this.#config.mainDynamodbTable,
       Key: {
-        threadId,
-        thoughtId,
+        itemID,
       },
       UpdateExpression:
-        "set modifiedOn = :modifiedOn, #thought_type = :type, thought = :thought, title = :title, tags = :tags", // For example, "'set Title = :t, Subtitle = :s'"
+        "set modifiedOn = :modifiedOn, #thought_type = :type, title = :title, tags = :tags", // For example, "'set Title = :t, Subtitle = :s'"
       ExpressionAttributeValues: {
         ":modifiedOn": modifiedOn,
         ":type": type,
-        ":thought": thought,
         ":title": title,
         ":tags": tags,
       },
       ExpressionAttributeNames: {
-        "#thought_type": "type",
+        "#item_type": "type",
       },
       ReturnValues: "ALL_NEW",
     });

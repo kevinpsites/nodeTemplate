@@ -19,9 +19,13 @@ resource "aws_lambda_function" "main_lambda" {
     variables = {
       DYNAMO_TABLE   = aws_dynamodb_table.main_dynamo.name,
       S3_BUCKET_NAME = aws_s3_bucket.lambda_bucket.bucket,
+      # ATTRIBUTE_TABLE = aws_dynamodb_table.attribute_dynamo.name,
 
-      AUTH0_JWKS         = var.project_auth0_jwks
-      AUTH0_API_AUDIENCE = var.project_auth0_audience
+      AUTH0_MANAGEMENT_DOMAIN = var.auth0_management_domain
+      AUTH0_JWKS              = var.project_auth0_jwks
+      AUTH0_API_AUDIENCE      = var.project_auth0_audience
+
+      BASIC_USER_ROLE = auth0_role.basic_user_role.id
     }
   }
 
@@ -43,7 +47,7 @@ resource "aws_cloudwatch_log_group" "main_lambda" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "serverless_lambda"
+  name = "${var.project_name}_lambda"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

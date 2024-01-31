@@ -1,4 +1,5 @@
 const createAPI = require("lambda-api");
+const axios = require("axios");
 
 const config = require("./config");
 
@@ -10,19 +11,25 @@ const { verifyAuth0TokenMiddleware, verifyRoutePermissionsMiddleware } =
   middlewareFunctions;
 
 const tokenFunctions = require("./helperFunctions/tokenFunctions");
-const { getUserId } = tokenFunctions;
+const attributeFunctions = require("./helperFunctions/attributeFunctions");
 
 const validation = require("./services/validation");
-const { exampleSchema, validator } = validation;
+const { schemas, validator } = validation;
+
+const basicFunctions = require("./helperFunctions/basicFunctions");
+const { BasicFunctions } = basicFunctions;
 
 const dynamodbClass = require("./services/dynamodb");
 const { DynamoDBService } = dynamodbClass;
 
-// Routes
-const assessmentResources = require("./routes/assessmentRoutes");
-const { AssessmentResources } = assessmentResources;
+const auth0TokenClass = require("./services/auth0TokenService");
+const { Auth0TokenService } = auth0TokenClass;
 
-const STAGE_VARIABLE = "/prod";
+// Routes
+const accountResources = require("./routes/accountRoutes");
+const { AccountResources } = accountResources;
+
+const STAGE_VARIABLE = "";
 const routePath = (route, version = "") => {
   return `${STAGE_VARIABLE}${version ? `/${version}` : ""}/${route}`;
 };
@@ -32,41 +39,46 @@ const createHandler = () => {
     logger: { level: process.env.LOG_LEVEL || "info" },
   });
 
-  const dynamoService = new DynamoDBService();
+  const basicFunctions = new BasicFunctions();
+  const dynamoService = new DynamoDBService({ config: config.config });
+  const auth0TokenService = new Auth0TokenService({
+    config: config.config,
+    axios,
+  });
 
   const basicResourcesObj = (additionalParams = {}) => {
     return {
+      config: config.config,
+      axios,
+      basicFunctions,
       dynamoService,
+      auth0TokenService,
       validatorService: validator,
+      schemas: {
+        ...schemas,
+      },
+      tokenFunctions,
+      attributeFunctions,
       routePermissionMiddleware: verifyRoutePermissionsMiddleware,
     };
   };
 
   const newClass = (classType, additionalParams = {}) => {
-    return new classType(basicResourcesObj(additionalParams));
+    const classInstance = new classType(basicResourcesObj(additionalParams));
+    return [
+      classInstance.routes,
+      {
+        prefix: routePath(classInstance.prefix),
+      },
+    ];
   };
 
   // register response builder helper methods
   api.use(new responseBuilder({ config }).wrapper());
-
-  // Check Token
-  // api.use(
-  //   [
-  //     routePath("search", "v2"),
-  //     routePath("thoughts", "v2"),
-  //     routePath("threads", "v2"),
-  //     routePath("thought", "v2"),
-  //     routePath(":threadId/thoughts", "v2"),
-  //     routePath(":threadId/thoughts/:thoughtId", "v2"),
-  //     routePath("exising/thought", "v2"),
-  //   ],
-  //   verifyAuth0TokenMiddleware
-  // );
+  api.use(verifyAuth0TokenMiddleware);
 
   // Register Class Routes
-  api.register(newClass(AssessmentResources).routes, {
-    prefix: routePath("assessment"),
-  });
+  api.register(...newClass(AccountResources));
 
   return async (event, context) => {
     return await api.run(event, context);

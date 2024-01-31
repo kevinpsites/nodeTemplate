@@ -1,5 +1,10 @@
-const getUserId = (req) => {
+const getUserID = (req) => {
   return req.user.token?.sub;
 };
 
-module.exports.getUserId = getUserId;
+const getPermissions = (req) => {
+  return req.user.token?.permissions ?? [];
+};
+
+module.exports.getUserID = getUserID;
+module.exports.getPermissions = getPermissions;

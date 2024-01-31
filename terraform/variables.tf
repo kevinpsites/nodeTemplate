@@ -4,6 +4,18 @@ variable "project_name" {
   default     = "Template_BE"
 }
 
+variable "project_display_name" {
+  description = "Value of project's display name"
+  type        = string
+  default     = "My Template App"
+}
+
+variable "project_s3_name" {
+  description = "Value of project s3 bucket"
+  type        = string
+  default     = "template-lambda"
+}
+
 variable "project_tag" {
   description = "Value of project Tag"
   type        = string
@@ -13,19 +25,19 @@ variable "project_tag" {
 variable "project_url" {
   description = "Value of project url"
   type        = string
-  default     = "https://kevinpsites.com"
+  default     = "https://template.kevinpsites.com"
+}
+
+variable "project_api_url" {
+  description = "Value of project API url"
+  type        = string
+  default     = "https://api.kevinpsites.com"
 }
 
 variable "project_dynamo_table_name" {
   description = "Value of project's main dynamo table"
   type        = string
-  default     = "main.table"
-}
-
-variable "project_s3_name" {
-  description = "Value of project s3 bucket"
-  type        = string
-  default     = "project-lambda"
+  default     = "template.test"
 }
 
 variable "project_auth0_jwks" {
@@ -34,11 +46,16 @@ variable "project_auth0_jwks" {
   default     = "https://dev-cdy4xvtqdlpi2327.us.auth0.com/.well-known/jwks.json"
 }
 
-
 variable "project_auth0_audience" {
   description = "Value of project auth0 audience"
   type        = string
-  default     = "https://571cp2h4ef.execute-api.us-east-1.amazonaws.com/prod"
+  default     = "https://api.kevinpsites.com"
+}
+
+variable "auth0_management_domain" {
+  description = "Value of auth0 management domain"
+  type        = string
+  default     = "https://dev-cdy4xvtqdlpi2327.us.auth0.com/api/v2"
 }
 
 
